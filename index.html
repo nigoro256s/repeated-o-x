@@ -1,0 +1,193 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;900&family=Stick&display=swap"
+        rel="stylesheet">
+    <title>まるばつるーぷ！</title>
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-family: 'Stick', sans-serif;
+        }
+
+        .game {
+            display: flex;
+            justify-content: center;
+        }
+
+        #canvas {
+            width: calc(min(90vw, 90vh));
+            box-shadow: 0px 0px 10px 5px rgb(192, 192, 192);
+        }
+
+        .texts {
+            text-align:center;
+            font-size: 200%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="game">
+        <div class="wrapper">
+            <canvas id="canvas" width="600" height="600"></canvas>
+        </div>
+    </div>
+    <div class="texts">
+        まるばつるーぷ！
+    </div>
+    <script>
+        var can = document.getElementById("canvas");
+        var con = can.getContext("2d");
+        function drawboard() {
+            con.fillStyle = 'rgb(128,128,128)';
+            for (var i = 0; i <= 1; i++) {
+                con.fillRect(40, 50 + 500 * i, 20, 1);
+                con.fillRect(50, 40 + 500 * i, 1, 20);
+                con.fillRect(240, 50 + 500 * i, 20, 1);
+                con.fillRect(250, 40 + 500 * i, 1, 20);
+                con.fillRect(340, 50 + 500 * i, 20, 1);
+                con.fillRect(350, 40 + 500 * i, 1, 20);
+                con.fillRect(540, 50 + 500 * i, 20, 1);
+                con.fillRect(550, 40 + 500 * i, 1, 20);
+                con.fillRect(40 + 500 * i, 250, 20, 1);
+                con.fillRect(50 + 500 * i, 240, 1, 20);
+                con.fillRect(40 + 500 * i, 350, 20, 1);
+                con.fillRect(50 + 500 * i, 340, 1, 20);
+            }
+            con.fillRect(0, 149, 600, 2);
+            con.fillRect(150, 249, 300, 2);
+            con.fillRect(150, 349, 300, 2);
+            con.fillRect(0, 449, 600, 2);
+            con.fillRect(149, 0, 2, 600);
+            con.fillRect(249, 150, 2, 300);
+            con.fillRect(349, 150, 2, 300);
+            con.fillRect(449, 0, 2, 600);
+        }
+        function drawo(xpos, ypos) {
+            con.strokeStyle = 'rgb(64,64,255)';
+            con.lineWidth = 5;
+            con.beginPath();
+            con.arc(200 + xpos * 100, 200 + ypos * 100, 30, 0, Math.PI * 2, true);
+            con.stroke();
+        }
+        function drawx(xpos, ypos) {
+            con.strokeStyle = 'rgb(255,64,64)';
+            con.lineWidth = 5;
+            con.beginPath();
+            con.moveTo(170 + xpos * 100, 170 + ypos * 100);
+            con.lineTo(230 + xpos * 100, 230 + ypos * 100);
+            con.stroke();
+            con.beginPath();
+            con.moveTo(230 + xpos * 100, 170 + ypos * 100);
+            con.lineTo(170 + xpos * 100, 230 + ypos * 100);
+            con.stroke();
+        }
+        drawboard();
+        function eioe(t) {
+            ret = 0;
+            if (0 < t && t < 0.5) {
+                ret = Math.pow(2, +20 * t - 10) / 2;
+            }
+            else if (t < 1) {
+                ret = (2 - Math.pow(2, -20 * t + 10)) / 2;
+            }
+            else {
+                ret = 1
+            }
+            return ret;
+        }
+        function mod(i, j) {
+            return (i % j) < 0 ? (i % j) + 0 + (j < 0 ? -j : j) : (i % j + 0);
+        }
+        can.addEventListener('click', onClick, false);
+        //
+        canplay = true;
+        var turn = 1;
+        var state = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+        var timer = 0;
+        var dir = [1, 1];
+        var posnum = 0;
+        var result = false;
+        //
+        function onClick(e) {
+            if (result) {
+                result = false;
+                state = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                con.clearRect(0, 0, 600, 600);
+                drawboard();
+            }
+            else if (canplay) {
+                var clickedx = Math.floor((e.clientX - canvas.offsetLeft - 0.25 * can.clientWidth) * 6 / can.clientWidth);
+                var clickedy = Math.floor((e.clientY - canvas.offsetTop - 0.25 * can.clientHeight) * 6 / can.clientHeight);
+                posnum = clickedx + 3 * clickedy;
+                if (0 <= clickedx && clickedx <= 2 && 0 <= clickedy && clickedy <= 2 && state[posnum] == 0) {
+                    canplay = false;
+                    state[posnum] = turn;
+                    console.log(state);
+                    timer = 0;
+                    dirs = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+                    dir = dirs[posnum];
+                    translate();
+                }
+            }
+        }
+        function translate() {
+            con.clearRect(0, 0, 600, 600);
+            drawboard();
+            ease = eioe(timer / 60);
+            for (var k = -1; k <= 1; k++) {
+                for (var j = -1; j <= 1; j++) {
+                    for (var i = 0; i <= 9; i++) {
+                        if (state[i] == 1) {
+                            drawo(i % 3 + dir[0] * ease + 3 * k, Math.floor(i / 3) + dir[1] * ease + 3 * j);
+                        }
+                        else if (state[i] == -1) {
+                            drawx(i % 3 + dir[0] * ease + 3 * k, Math.floor(i / 3) + dir[1] * ease + 3 * j);
+                        }
+                    }
+                }
+            }
+            timer++;
+            if (timer <= 60 && posnum != 4) {
+                requestAnimationFrame(translate);
+            }
+            else {
+                canplay = true;
+                turn *= -1;
+                var statecopy = Array.from(state);
+                var delta = [[8, 6, 7, 2, 0, 1, 5, 3, 4],
+                [6, 7, 8, 0, 1, 2, 3, 4, 5,],
+                [7, 8, 6, 1, 2, 0, 4, 5, 3],
+                [2, 0, 1, 5, 3, 4, 8, 6, 7],
+                [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                [1, 2, 0, 4, 5, 3, 7, 8, 6],
+                [5, 3, 4, 8, 6, 7, 2, 0, 1],
+                [3, 4, 5, 6, 7, 8, 0, 1, 2],
+                [4, 5, 3, 7, 8, 6, 1, 2, 0]];
+                for (var i = 0; i <= 8; i++) {
+                    state[delta[posnum][i]] = statecopy[i];
+                }
+                if (state[0] + state[1] + state[2] == 3 || state[3] + state[4] + state[5] == 3 || state[6] + state[7] + state[8] == 3 || state[0] + state[4] + state[7] == 3 || state[0] + state[3] + state[6] == 3 || state[1] + state[4] + state[7] == 3 || state[2] + state[5] + state[8] == 3 || state[2] + state[4] + state[6] == 3) {
+                    con.strokeStyle = 'rgb(64,64,255)';
+                    con.lineWidth = 10;
+                    con.strokeRect(150, 150, 300, 300);
+                    result = true;
+                }
+                else if (state[0] + state[1] + state[2] == -3 || state[3] + state[4] + state[5] == -3 || state[6] + state[7] + state[8] == -3 || state[0] + state[4] + state[7] == -3 || state[0] + state[3] + state[6] == -3 || state[1] + state[4] + state[7] == -3 || state[2] + state[5] + state[8] == -3 || state[2] + state[4] + state[6] == -3) {
+                    con.strokeStyle = 'rgb(255,64,64)';
+                    con.lineWidth = 10;
+                    con.strokeRect(150, 150, 300, 300);
+                    result = true;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
