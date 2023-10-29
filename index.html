@@ -6,23 +6,22 @@
     <meta name="viewport" content="width=device-width">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;900&family=Stick&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Stick&display=swap" rel="stylesheet">
     <title>まるばつるーぷ！</title>
     <style>
         body {
-            font-family: 'M PLUS Rounded 1c', sans-serif;
             font-family: 'Stick', sans-serif;
         }
 
         .game {
             display: flex;
             justify-content: center;
+            margin-top: 10px;
             margin-bottom: 10px;
         }
 
         #canvas {
-            width: calc(min(90vw, 90vh));
+            width: calc(min(80vw, 80vh));
             box-shadow: 0px 0px 10px 5px rgb(192, 192, 192);
         }
 
@@ -30,17 +29,90 @@
             text-align: center;
             font-size: 200%;
         }
+
+        #eval {
+            display: none;
+            justify-content: center;
+        }
+
+        .switchArea {
+            line-height    : 56px;
+            letter-spacing : 0;
+            text-align     : center;
+            font-size      : 150%;
+            position       : relative;
+            margin         : auto;
+            width          : 256px;
+            background     : #fff;
+        }
+
+        .switchArea input[type="checkbox"] {
+            display        : none;
+        }
+
+        .switchArea label {
+            display        : block;
+            box-sizing     : border-box;
+            height         : 56px;
+            border         : 2px solid #a64dff;
+            border-radius  : 28px;
+        }
+
+        .switchArea input[type="checkbox"]:checked +label {
+            border-color   : #ff7f00;
+        }
+
+        .switchArea label span:after{
+            content        : "一人プレイ";
+            padding        : 0 0 0 33px;
+            color          : #a64dff;
+        }
+
+        .switchArea  input[type="checkbox"]:checked + label span:after{
+            content        : "対戦モード";
+            padding        : 0 33px 0 0;
+            color          : #ff7f00;
+        }
+
+        .switchArea #swImg {
+            position       : absolute;
+            width          : 48px;
+            height         : 48px;
+            background     : #a64dff;
+            top            : 4px;
+            left           : 4px;
+            border-radius  : 24px;
+            transition     : .2s;
+        }
+
+        .switchArea input[type="checkbox"]:checked ~ #swImg {
+            transform      : translateX(200px);
+            background     : #ff7f00;
+        }
+
+        span {
+            display: inline-block;
+        }
     </style>
 </head>
 
 <body>
+    <div class="texts">
+        <span>まるばつるーぷ！</span><span>アルファ版</span>
+    </div>
+    <div id="eval">
+        <pre id="evaltext">This is evaluation window!</pre>
+    </div>
     <div class="game">
         <div class="wrapper">
             <canvas id="canvas" width="600" height="600"></canvas>
         </div>
     </div>
-    <div class="texts">
-        まるばつるーぷ！ ベータ版
+    <div class="switchArea">
+        <input type="checkbox" id="switch1">
+        <label for="switch1"><span></span></label>
+        <div id="swImg"></div>
+        <span id="showstate">選択可能</span>
     </div>
     <script>
         var can = document.getElementById("canvas");
@@ -72,14 +144,17 @@
         charars.src = "reds.png";
         function eioe(t) {
             ret = 0;
-            if (0 < t && t < 0.5) {
+            if (t <= 0) {
+                ret = 0;
+            }
+            else if (0 < t && t < 0.5) {
                 ret = Math.pow(2, 20 * t - 10) / 2;
             }
             else if (t < 1) {
                 ret = (2 - Math.pow(2, -20 * t + 10)) / 2;
             }
             else {
-                ret = 1
+                ret = 1;
             }
             return ret;
         }
@@ -87,8 +162,11 @@
             return (i % j) < 0 ? (i % j) + 0 + (j < 0 ? -j : j) : (i % j + 0);
         }
         can.addEventListener('click', onClick, false);
+        var evalwin = document.getElementById("eval");
+        var evalt = document.getElementById("evaltext");
+        evalt.innerHTML = " ----------<br>| 9o 9o 9o |   next: o<br>| 9o 7o 9o |<br>| 9o 9o 9o |   o will win <br> ----------"
         //
-        canplay = true;
+        var canplay = true;
         var turn = -1;
         var state = [0, 0, 0, 0, 0, 0, 0, 0, 0];
         var laststate = [];
@@ -96,52 +174,90 @@
         var dir = [1, 1];
         var posnum = 0;
         var result = 0;
+        var switchtoggle = document.getElementById("switch1");
+        var showstate = document.getElementById("showstate");
+        var gameend = true;
+        var footstep = [];
+        var hiddin = true;
+        var hiddinkey = 10;
         //
         function onClick(e) {
-            var gameend = true;
-            state.forEach(function (element) {
-                if (element == 0) {
-                    gameend = false;
+            if (canplay) {
+                gameend = true;
+                state.forEach(function (element) {
+                    if (element == 0) {
+                        gameend = false;
+                    }
+                });
+                //
+                if (result != 0 || gameend) {
+                    result = 0;
+                    state = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    turn = -1;
+                    con.clearRect(0, 0, 600, 600);
+                    drawboard();
+                    switchtoggle.disabled = false;
+                    showstate.textContent = "選択可能";
+                    evalt.innerHTML = " ----------<br>| 9o 9o 9o |   next: o<br>| 9o 7o 9o |<br>| 9o 9o 9o |   o will win <br> ----------"
+                    footstep = [];
                 }
-            });
-            if (result != 0 || gameend) {
-                result = 0;
-                state = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-                trun = -1;
-                con.clearRect(0, 0, 600, 600);
-                drawboard();
-            }
-            else if (canplay) {
-                var clickedx = Math.floor((e.clientX - canvas.offsetLeft - 0.25 * can.clientWidth) * 6 / can.clientWidth);
-                var clickedy = Math.floor((e.clientY - canvas.offsetTop - 0.25 * can.clientHeight) * 6 / can.clientHeight);
-                posnum = clickedx + 3 * clickedy;
-                if (0 <= clickedx && clickedx <= 2 && 0 <= clickedy && clickedy <= 2 && state[posnum] == 0) {
-                    canplay = false;
-                    state[posnum] = turn;
-                    timer = 0;
-                    dirs = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-                    dir = dirs[posnum];
-                    var statecopy = Array.from(state);
-                    laststate = Array.from(state);
-                    var delta = [[8, 6, 7, 2, 0, 1, 5, 3, 4],
-                    [6, 7, 8, 0, 1, 2, 3, 4, 5],
-                    [7, 8, 6, 1, 2, 0, 4, 5, 3],
-                    [2, 0, 1, 5, 3, 4, 8, 6, 7],
-                    [0, 1, 2, 3, 4, 5, 6, 7, 8],
-                    [1, 2, 0, 4, 5, 3, 7, 8, 6],
-                    [5, 3, 4, 8, 6, 7, 2, 0, 1],
-                    [3, 4, 5, 6, 7, 8, 0, 1, 2],
-                    [4, 5, 3, 7, 8, 6, 1, 2, 0]];
-                    for (var i = 0; i <= 8; i++) {
-                        state[delta[posnum][i]] = statecopy[i];
+                else {
+                    var clickedx = Math.floor((e.clientX + window.scrollX - canvas.offsetLeft - 0.25 * can.clientWidth) * 6 / can.clientWidth);
+                    var clickedy = Math.floor((e.clientY + window.scrollY - canvas.offsetTop - 0.25 * can.clientHeight) * 6 / can.clientHeight);
+                    posnum = clickedx + 3 * clickedy;
+                    if (clickedx <= -1) {
+                        if (hiddinkey % 2 == 0 || hiddinkey <= 0) {
+                            hiddinkey--;
+                        }
+                        else {
+                            hiddinkey = 10;
+                        }
                     }
-                    if (state[0] + state[1] + state[2] == 3 || state[3] + state[4] + state[5] == 3 || state[6] + state[7] + state[8] == 3 || state[0] + state[3] + state[6] == 3 || state[1] + state[4] + state[7] == 3 || state[2] + state[5] + state[8] == 3 || state[0] + state[4] + state[8] == 3 || state[2] + state[4] + state[6] == 3) {
-                        result = 1;
+                    else if (3 <= clickedx) {
+                        if (hiddinkey % 2 == 1 || hiddinkey <= 0) {
+                            hiddinkey--;
+                        }
+                        else {
+                            hiddinkey = 10;
+                        }
                     }
-                    else if (state[0] + state[1] + state[2] == -3 || state[3] + state[4] + state[5] == -3 || state[6] + state[7] + state[8] == -3 || state[0] + state[3] + state[6] == -3 || state[1] + state[4] + state[7] == -3 || state[2] + state[5] + state[8] == -3 || state[0] + state[4] + state[8] == -3 || state[2] + state[4] + state[6] == -3) {
-                        result = -1;
+                    if (hiddinkey <= 0) {
+                        evalwin.style.display = 'flex';
                     }
-                    translate();
+                    if (0 <= clickedx && clickedx <= 2 && 0 <= clickedy && clickedy <= 2 && state[posnum] == 0) {
+                        switchtoggle.disabled = true;
+                        showstate.textContent = "変更不可";
+                        footstep.push(posnum);
+                        if (hiddinkey <= 0) {
+                            evalt.innerHTML = visualize(footstep);
+                        }
+                        canplay = false;
+                        state[posnum] = turn;
+                        timer = 0;
+                        dirs = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+                        dir = dirs[posnum];
+                        var statecopy = Array.from(state);
+                        laststate = Array.from(state);
+                        var delta = [[8, 6, 7, 2, 0, 1, 5, 3, 4],
+                        [6, 7, 8, 0, 1, 2, 3, 4, 5],
+                        [7, 8, 6, 1, 2, 0, 4, 5, 3],
+                        [2, 0, 1, 5, 3, 4, 8, 6, 7],
+                        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                        [1, 2, 0, 4, 5, 3, 7, 8, 6],
+                        [5, 3, 4, 8, 6, 7, 2, 0, 1],
+                        [3, 4, 5, 6, 7, 8, 0, 1, 2],
+                        [4, 5, 3, 7, 8, 6, 1, 2, 0]];
+                        for (var i = 0; i <= 8; i++) {
+                            state[delta[posnum][i]] = statecopy[i];
+                        }
+                        if (state[0] + state[1] + state[2] == 3 || state[3] + state[4] + state[5] == 3 || state[6] + state[7] + state[8] == 3 || state[0] + state[3] + state[6] == 3 || state[1] + state[4] + state[7] == 3 || state[2] + state[5] + state[8] == 3 || state[0] + state[4] + state[8] == 3 || state[2] + state[4] + state[6] == 3) {
+                            result = 1;
+                        }
+                        else if (state[0] + state[1] + state[2] == -3 || state[3] + state[4] + state[5] == -3 || state[6] + state[7] + state[8] == -3 || state[0] + state[3] + state[6] == -3 || state[1] + state[4] + state[7] == -3 || state[2] + state[5] + state[8] == -3 || state[0] + state[4] + state[8] == -3 || state[2] + state[4] + state[6] == -3) {
+                            result = -1;
+                        }
+                        translate();
+                    }
                 }
             }
         }
@@ -174,18 +290,358 @@
                 requestAnimationFrame(translate);
             }
             else {
-                canplay = true;
-                turn *= -1;
                 drawboard();
+                turn *= -1;
                 if (result == 1) {
                     con.globalAlpha = 1;
                     con.drawImage(charabs, 100, 100);
+                    canplay = true;
                 }
                 else if (result == -1) {
                     con.globalAlpha = 1;
                     con.drawImage(charars, 100, 100);
+                    canplay = true;
+                }
+                else if (!switchtoggle.checked && turn == 1) {
+                    canplay = false;
+                    if (posnum == 4){
+                        setTimeout(ai, 500);
+                    }
+                    else {
+                        ai()
+                    }
+                }
+                else {
+                    canplay = true;
                 }
             }
+        }
+        function ai() {
+            var foonum = 0;
+            gameend = true;
+            state.forEach(function (element) {
+                if (element == 0) {
+                    gameend = false;
+                }
+                else {
+                    foonum += 1;
+                }
+            });
+            /*****/
+            if (foonum == 1) {
+                posnum = Math.floor(9 * Math.random());
+                while (state[posnum] != 0) {
+                    posnum = Math.floor(9 * Math.random());
+                }
+                footstep.push(posnum);
+                if (hiddinkey <= 0) {
+                    evalt.innerHTML = visualize(footstep);
+                }
+            }
+            else {
+                function mm(snow, fnow, mini) {
+                    if (
+                        snow[0] + snow[1] + snow[2] == -3
+                        || snow[3] + snow[4] + snow[5] == -3
+                        || snow[6] + snow[7] + snow[8] == -3
+                        || snow[0] + snow[3] + snow[6] == -3
+                        || snow[1] + snow[4] + snow[7] == -3
+                        || snow[2] + snow[5] + snow[8] == -3
+                        || snow[0] + snow[4] + snow[8] == -3
+                        || snow[2] + snow[4] + snow[6] == -3
+                    ) {
+                        return 0 + fnow.length;
+                    }
+                    else if (
+                        (
+                            snow[0] + snow[4] + snow[8] == 3
+                            || snow[2] + snow[4] + snow[6] == 3
+                        )
+                        && (
+                            fnow.includes(1)
+                            || fnow.includes(3)
+                            || fnow.includes(5)
+                            || fnow.includes(7)
+                        )
+                    ) {
+                        return 40 - fnow.length;
+                    }
+                    else if (
+                        snow[0] + snow[1] + snow[2] == 3
+                        || snow[3] + snow[4] + snow[5] == 3
+                        || snow[6] + snow[7] + snow[8] == 3
+                        || snow[0] + snow[3] + snow[6] == 3
+                        || snow[1] + snow[4] + snow[7] == 3
+                        || snow[2] + snow[5] + snow[8] == 3
+                        || snow[0] + snow[4] + snow[8] == 3
+                        || snow[2] + snow[4] + snow[6] == 3
+                    ) {
+                        return 30 - fnow.length;
+                    }
+                    else if (fnow.length == 9) {
+                        return 10 + fnow.length;
+                    }
+                    else {
+                        var returns = [];
+                        var delta2 = [
+                            [4, 5, 3, 7, 8, 6, 1, 2, 0],
+                            [3, 4, 5, 6, 7, 8, 0, 1, 2],
+                            [5, 3, 4, 8, 6, 7, 2, 0, 1],
+                            [1, 2, 0, 4, 5, 3, 7, 8, 6],
+                            [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                            [2, 0, 1, 5, 3, 4, 8, 6, 7],
+                            [7, 8, 6, 1, 2, 0, 4, 5, 3],
+                            [6, 7, 8, 0, 1, 2, 3, 4, 5],
+                            [8, 6, 7, 2, 0, 1, 5, 3, 4],
+                        ];
+                        for (var i = 0; i <= 8; i++) {
+                            if (snow[i] == 0) {
+                                var snownow = [...snow];
+                                snownow[i] = -2 * mini + 1;
+                                var fnownow = [...fnow];
+                                fnownow.push(i);
+                                var snownownow = [];
+                                for (var j = 0; j <= 8; j++) {
+                                    snownownow.push(snownow[delta2[i][j]]);
+                                }
+                                returns.push(mm(snownownow, [...fnownow], !mini));
+                            }
+                        }
+                        if (mini) {
+                            return Math.min(...returns);
+                        }
+                        else {
+                            return Math.max(...returns);
+                        }
+                    }
+                }
+                function sm(fs) {
+                    var sn = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    var turn2 = -1;
+                    delta2 = [
+                        [4, 5, 3, 7, 8, 6, 1, 2, 0],
+                        [3, 4, 5, 6, 7, 8, 0, 1, 2],
+                        [5, 3, 4, 8, 6, 7, 2, 0, 1],
+                        [1, 2, 0, 4, 5, 3, 7, 8, 6],
+                        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                        [2, 0, 1, 5, 3, 4, 8, 6, 7],
+                        [7, 8, 6, 1, 2, 0, 4, 5, 3],
+                        [6, 7, 8, 0, 1, 2, 3, 4, 5],
+                        [8, 6, 7, 2, 0, 1, 5, 3, 4],
+                    ];
+                    for (var elem of fs) {
+                        sn[elem] = turn2;
+                        var sncopy = [...sn];
+                        for (var i = 0; i <= 8; i++) {
+                            sn[i] = sncopy[delta2[elem][i]];
+                        }
+                        turn2 *= -1;
+                    }
+                    return sn;
+                }
+                /****/
+                var evals = [];
+                for (var i = 0; i <= 8; i++) {
+                    if (sm(footstep)[i] == 0) {
+                        var footstepcopy = [...footstep];
+                        footstepcopy.push(i);
+                        evals.push(mm(sm(footstepcopy), footstepcopy, true));
+                    }
+                    else {
+                        evals.push(0);
+                    }
+                }
+                posnum = Math.floor(9 * Math.random());
+                var test = 0;
+                while (evals[posnum] != Math.max(...evals)) {
+                    posnum = Math.floor(9 * Math.random());
+                }
+                /****/
+                footstep.push(posnum);
+                if (hiddinkey <= 0) {
+                    evalt.innerHTML = visualize(footstep);
+                }
+            }
+            /****/
+            canplay = false;
+            state[posnum] = turn;
+            timer = 0;
+            dirs = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+            dir = dirs[posnum];
+            var statecopy = Array.from(state);
+            laststate = Array.from(state);
+            var delta = [
+                [8, 6, 7, 2, 0, 1, 5, 3, 4],
+                [6, 7, 8, 0, 1, 2, 3, 4, 5],
+                [7, 8, 6, 1, 2, 0, 4, 5, 3],
+                [2, 0, 1, 5, 3, 4, 8, 6, 7],
+                [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                [1, 2, 0, 4, 5, 3, 7, 8, 6],
+                [5, 3, 4, 8, 6, 7, 2, 0, 1],
+                [3, 4, 5, 6, 7, 8, 0, 1, 2],
+                [4, 5, 3, 7, 8, 6, 1, 2, 0]
+            ];
+            for (var i = 0; i <= 8; i++) {
+                state[delta[posnum][i]] = statecopy[i];
+            }
+            if (state[0] + state[1] + state[2] == 3 || state[3] + state[4] + state[5] == 3 || state[6] + state[7] + state[8] == 3 || state[0] + state[3] + state[6] == 3 || state[1] + state[4] + state[7] == 3 || state[2] + state[5] + state[8] == 3 || state[0] + state[4] + state[8] == 3 || state[2] + state[4] + state[6] == 3) {
+                result = 1;
+            }
+            else if (state[0] + state[1] + state[2] == -3 || state[3] + state[4] + state[5] == -3 || state[6] + state[7] + state[8] == -3 || state[0] + state[3] + state[6] == -3 || state[1] + state[4] + state[7] == -3 || state[2] + state[5] + state[8] == -3 || state[0] + state[4] + state[8] == -3 || state[2] + state[4] + state[6] == -3) {
+                result = -1;
+            }
+            translate();
+        }
+        function visualize(vfs) {
+            function vmm(snow, fnow, mini) {
+                if (
+                    snow[0] + snow[1] + snow[2] == -3
+                    || snow[3] + snow[4] + snow[5] == -3
+                    || snow[6] + snow[7] + snow[8] == -3
+                    || snow[0] + snow[3] + snow[6] == -3
+                    || snow[1] + snow[4] + snow[7] == -3
+                    || snow[2] + snow[5] + snow[8] == -3
+                    || snow[0] + snow[4] + snow[8] == -3
+                    || snow[2] + snow[4] + snow[6] == -3
+                ) {
+                    return -fnow.length;
+                }
+                else if (
+                    snow[0] + snow[1] + snow[2] == 3
+                    || snow[3] + snow[4] + snow[5] == 3
+                    || snow[6] + snow[7] + snow[8] == 3
+                    || snow[0] + snow[3] + snow[6] == 3
+                    || snow[1] + snow[4] + snow[7] == 3
+                    || snow[2] + snow[5] + snow[8] == 3
+                    || snow[0] + snow[4] + snow[8] == 3
+                    || snow[2] + snow[4] + snow[6] == 3
+                ) {
+                    return fnow.length;
+                }
+                else if (fnow.length == 9) {
+                    return 0;
+                }
+                else {
+                    var returns = [];
+                    var delta2 = [
+                        [4, 5, 3, 7, 8, 6, 1, 2, 0],
+                        [3, 4, 5, 6, 7, 8, 0, 1, 2],
+                        [5, 3, 4, 8, 6, 7, 2, 0, 1],
+                        [1, 2, 0, 4, 5, 3, 7, 8, 6],
+                        [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                        [2, 0, 1, 5, 3, 4, 8, 6, 7],
+                        [7, 8, 6, 1, 2, 0, 4, 5, 3],
+                        [6, 7, 8, 0, 1, 2, 3, 4, 5],
+                        [8, 6, 7, 2, 0, 1, 5, 3, 4],
+                    ];
+                    for (var i = 0; i <= 8; i++) {
+                        if (snow[i] == 0) {
+                            var snownow = [...snow];
+                            snownow[i] = -2 * mini + 1;
+                            var fnownow = [...fnow];
+                            fnownow.push(i);
+                            var snownownow = [];
+                            for (var j = 0; j <= 8; j++) {
+                                snownownow.push(snownow[delta2[i][j]]);
+                            }
+                            returns.push(vmm(snownownow, [...fnownow], !mini));
+                        }
+                    }
+                    if (mini) {
+                        return Math.min(...returns);
+                    }
+                    else {
+                        return Math.max(...returns);
+                    }
+                }
+            }
+            function vsm(fs) {
+                var sn = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+                var turn2 = -1;
+                delta2 = [
+                    [4, 5, 3, 7, 8, 6, 1, 2, 0],
+                    [3, 4, 5, 6, 7, 8, 0, 1, 2],
+                    [5, 3, 4, 8, 6, 7, 2, 0, 1],
+                    [1, 2, 0, 4, 5, 3, 7, 8, 6],
+                    [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                    [2, 0, 1, 5, 3, 4, 8, 6, 7],
+                    [7, 8, 6, 1, 2, 0, 4, 5, 3],
+                    [6, 7, 8, 0, 1, 2, 3, 4, 5],
+                    [8, 6, 7, 2, 0, 1, 5, 3, 4],
+                ];
+                for (var elem of fs) {
+                    sn[elem] = turn2;
+                    var sncopy = [...sn];
+                    for (var i = 0; i <= 8; i++) {
+                        sn[i] = sncopy[delta2[elem][i]];
+                    }
+                    turn2 *= -1;
+                }
+                return sn;
+            }
+            var vst = vsm(vfs);
+            if (
+                vst[0] + vst[1] + vst[2] == -3
+                || vst[3] + vst[4] + vst[5] == -3
+                || vst[6] + vst[7] + vst[8] == -3
+                || vst[0] + vst[3] + vst[6] == -3
+                || vst[1] + vst[4] + vst[7] == -3
+                || vst[2] + vst[5] + vst[8] == -3
+                || vst[0] + vst[4] + vst[8] == -3
+                || vst[2] + vst[4] + vst[6] == -3
+                || vst[0] + vst[1] + vst[2] == 3
+                || vst[3] + vst[4] + vst[5] == 3
+                || vst[6] + vst[7] + vst[8] == 3
+                || vst[0] + vst[3] + vst[6] == 3
+                || vst[1] + vst[4] + vst[7] == 3
+                || vst[2] + vst[5] + vst[8] == 3
+                || vst[0] + vst[4] + vst[8] == 3
+                || vst[2] + vst[4] + vst[6] == 3
+            ) {
+                return " ----------<br>|          |   next: -<br>|          |<br>|          |   game's over<br> ----------"
+            }
+            var rarray = [];
+            var evalarr = [];
+            for (var i = 0; i <= 8; i++) {
+                if (vsm([...vfs])[i] == 0) {
+                    var vfscopy = [...vfs];
+                    vfscopy.push(i);
+                    var evalnum = vmm(vsm([...vfscopy]), [...vfscopy], vfscopy.length % 2 == 0);
+                    evalarr.push(evalnum);
+                    if (evalnum == 0) {
+                        rarray.push(" dr");
+                    }
+                    else if (evalnum <= 0) {
+                        rarray.push(" " + String(-evalnum) + "o");
+                    }
+                    else {
+                        rarray.push(" " + String(evalnum) + "x");
+                    }
+                }
+                else {
+                    rarray.push("   ");
+                }
+                var textarr = ["o", "x", "-"];
+                var textarrind1 = (vfs.length % 2 == 1) * 1;
+                var textarrind2 = 0;
+                if (textarrind1 == 0) {
+                    if (Math.min(...evalarr) > 0) {
+                        textarrind2 = 1;
+                    }
+                    else if (Math.min(...evalarr) == 0) {
+                        textarrind2 = 2;
+                    }
+                }
+                else {
+                    if (Math.max(...evalarr) > 0) {
+                        textarrind2 = 1;
+                    }
+                    else if (Math.max(...evalarr) == 0) {
+                        textarrind2 = 2;
+                    } 
+                }
+            }
+            return " ----------<br>|" + rarray[0] + rarray[1] + rarray[2] + " |   next: " + textarr[textarrind1] + "<br>|" + rarray[3] + rarray[4] + rarray[5] + " |<br>|" + rarray[6] + rarray[7] + rarray[8] + " |   " + textarr[textarrind2] + " will win <br> ----------";
         }
     </script>
 </body>
